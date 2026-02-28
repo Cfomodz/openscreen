@@ -1,0 +1,33 @@
+{
+  "name": "openscreen-cli",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Bare-bones CLI tools for video post-processing — zoom/pan, backgrounds, annotations, crop, trim. Generates FFmpeg filter strings and commands.",
+  "main": "dist/lib.js",
+  "types": "dist/lib.d.ts",
+  "exports": {
+    ".": "./dist/lib.js",
+    "./zoom": "./dist/zoom.js",
+    "./crop": "./dist/crop.js",
+    "./trim": "./dist/trim.js",
+    "./background": "./dist/background.js",
+    "./annotations": "./dist/annotations.js",
+    "./pipeline": "./dist/pipeline.js",
+    "./types": "./dist/types.js"
+  },
+  "bin": {
+    "openscreen": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "commander": "^12.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.2.2",
+    "@types/node": "^20.0.0"
+  }
+}

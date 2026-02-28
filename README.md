@@ -1,91 +1,121 @@
-> [!WARNING]
-> This is very much in beta and might be buggy here and there (but hope you have a good experience!).
+# OpenScreen CLI
 
-<p align="center">
-  <img src="public/openscreen.png" alt="OpenScreen Logo" width="64" />
-  <br />
-  <br />
-  <a href="https://deepwiki.com/siddharthvaddem/openscreen">
-    <img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki" />
-  </a>
-</p>
+Bare-bones CLI tools for video post-processing. Generates FFmpeg filter strings and commands for zoom/pan, backgrounds, annotations, crop, and trim.
 
-# <p align="center">OpenScreen</p>
+Designed to be used as a library or standalone CLI within video pipelines (e.g., [auto-broll](./CLAUDE.md)).
 
-<p align="center"><strong>OpenScreen is your free, open-source alternative to Screen Studio (sort of).</strong></p>
-
-If you don't want to pay $29/month for Screen Studio but want a much simpler version that does what most people seem to need, making beautiful product demos and walkthroughs, here's a free-to-use app for you. OpenScreen does not offer all Screen Studio features, but covers the basics well!
-
-Screen Studio is an awesome product and this is definitely not a 1:1 clone. OpenScreen is a much simpler take, just the basics for folks who want control and don't want to pay. If you need all the fancy features, your best bet is to support Screen Studio (they really do a great job, haha). But if you just want something free (no gotchas) and open, this project does the job!
-
-OpenScreen is 100% free for personal and commercial use. Use it, modify it, distribute it. (Just be cool 😁 and give a shoutout if you feel like it !)
-
-<p align="center">
-  <img src="public/preview.png" alt="OpenScreen App Preview" style="height: 320px; margin-right: 12px;" />
-	<img src="public/preview2.png" alt="OpenScreen App Preview 2" style="height: 320px; margin-right: 12px;" />
-	<img src="public/preview3.png" alt="OpenScreen App Preview 3" style="height: 320px; margin-right: 12px;" />
-	<img src="public/preview4.png" alt="OpenScreen App Preview 4" style="height: 320px; margin-right: 12px;" />
-</p>
-
-## Core Features
-- Record your whole screen or specific apps
-- Add manual zooms (customizable depth levels)
-- Customize the duration and position of zooms however you please
-- Crop video recordings to hide parts
-- Choose between wallpapers, solid colors, gradients or your own picture for your background
-- Motion blur for smoother pan and zoom effects
-- Add annotations (text, arrows, images)
-- Trim sections of the clip
-- Export in different aspect ratios and resolutions
-
-## Installation
-
-Download the latest installer for your platform from the [GitHub Releases](https://github.com/siddharthvaddem/openscreen/releases) page.
-
-### macOS
-
-If you encounter issues with macOS Gatekeeper blocking the app (since it does not come with a developer certificate), you can bypass this by running the following command in your terminal after installation:
+## Install
 
 ```bash
-xattr -rd com.apple.quarantine /Applications/Openscreen.app
+cd cli && npm install
+npm run build
 ```
 
-Note: Give your terminal Full Disk Access in **System Settings > Privacy & Security** to grant you access and then run the above command.
-
-After running this command, proceed to **System Preferences > Security & Privacy** to grant the necessary permissions for "screen recording" and "accessibility". Once permissions are granted, you can launch the app.
-
-### Linux
-
-Download the `.AppImage` file from the releases page. Make it executable and run:
+## CLI Usage
 
 ```bash
-chmod +x Openscreen-Linux-*.AppImage
-./Openscreen-Linux-*.AppImage
+# Show all commands
+node cli/dist/index.js --help
+
+# Generate a zoom filter for FFmpeg
+node cli/dist/index.js zoom static --cx 0.5 --cy 0.06 -d 3 -w 1920 -h 1080
+# → crop=1067:600:427:0,scale=1920:1080:flags=lanczos
+
+# Animated zoom with regions
+node cli/dist/index.js zoom filter \
+  -r '[{"id":"z1","startMs":1000,"endMs":3000,"depth":3,"focus":{"cx":0.5,"cy":0.06}}]' \
+  -w 1920 -h 1080
+
+# Apply background (dry-run to see command)
+node cli/dist/index.js background \
+  -i input.mp4 -o output.mp4 -w 1920 -h 1080 \
+  -t blur -p 10 --border-radius 12 --dry-run
+
+# Crop video (filter only)
+node cli/dist/index.js crop apply -w 1920 -h 1080 --y 0.05 --ch 0.95 --filter-only -i x -o x
+# → crop=1920:1026:0:54
+
+# Trim video (remove sections)
+node cli/dist/index.js trim \
+  -i input.mp4 -o output.mp4 --duration 60000 \
+  --regions '[{"id":"t1","startMs":5000,"endMs":10000}]' --dry-run
+
+# Add text annotation
+node cli/dist/index.js annotate \
+  -i input.mp4 -o output.mp4 -w 1920 -h 1080 \
+  --annotations '[{"id":"a1","startMs":0,"endMs":3000,"type":"text","text":"Hello","x":50,"y":10,"fontSize":48,"fontColor":"#ffffff"}]' \
+  --dry-run
+
+# Full pipeline from config file
+node cli/dist/index.js process -c config.json --dry-run
 ```
 
-You may need to grant screen recording permissions depending on your desktop environment.
+## Library Usage
 
-**Note:** If the app fails to launch due to a "sandbox" error, run it with --no-sandbox:
-```bash
-./Openscreen-Linux-*.AppImage --no-sandbox
+```typescript
+import {
+  generateZoomFilter,
+  generateStaticZoomFilter,
+  generateBackgroundFilter,
+  generateCropFilter,
+  generateTrimFilter,
+  generateAnnotationFilters,
+  buildPipeline,
+  ZoomPresets,
+  CropPresets,
+  ZOOM_DEPTH_SCALES,
+} from './cli/dist/lib.js';
+
+// Generate FFmpeg filter for animated zoom
+const zoomFilter = generateZoomFilter(
+  [{ id: 'z1', startMs: 1000, endMs: 3000, depth: 3, focus: { cx: 0.5, cy: 0.06 } }],
+  1920, 1080, 30
+);
+
+// Generate crop filter
+const cropFilter = generateCropFilter(CropPresets.noBrowserChrome(), 1920, 1080);
+
+// Build full pipeline
+const steps = buildPipeline({
+  inputPath: 'input.mp4',
+  outputPath: 'output.mp4',
+  video: { width: 1920, height: 1080, durationMs: 60000, fps: 30 },
+  zoom: {
+    regions: [{ id: 'z1', startMs: 1000, endMs: 3000, depth: 3, focus: ZoomPresets.searchBar() }],
+  },
+  crop: CropPresets.noBrowserChrome(),
+  background: { type: 'blur', blurRadius: 20, padding: 10, borderRadius: 12 },
+});
+
+// steps is an array of { description, args } — execute with child_process
 ```
 
-## Built with
-- Electron
-- React
-- TypeScript
-- Vite
-- PixiJS
-- dnd-timeline
+## Commands
 
----
+| Command | Description |
+|---------|-------------|
+| `zoom filter` | Animated zoom from region JSON -> FFmpeg crop expression |
+| `zoom static` | Static zoom at a focus point -> FFmpeg crop filter |
+| `zoom presets` | List focus point presets and depth scales |
+| `background` | Place video on color/blur/image background |
+| `crop apply` | Crop using normalized coordinates |
+| `crop presets` | List common crop presets |
+| `trim` | Remove time ranges and concatenate |
+| `annotate` | Add text/arrow overlays |
+| `process` | Run full pipeline from config JSON |
 
-_I'm new to open source, idk what I'm doing lol. If something is wrong please raise an issue 🙏_
+## Flags
 
-## Contributing
+All commands support:
+- `--filter-only` — Print just the FFmpeg filter string (for piping into your own FFmpeg commands)
+- `--dry-run` — Print the full FFmpeg command without executing
+- Standard execution — Runs FFmpeg directly
 
-Contributions are welcome! If you’d like to help out or see what’s currently being worked on, take a look at the open issues and the [project roadmap](https://github.com/users/siddharthvaddem/projects/3) to understand the current direction of the project and find ways to contribute.
+## Requirements
+
+- Node.js >= 18
+- FFmpeg + ffprobe in PATH
 
 ## License
 
-This project is licensed under the [MIT License](./LICENSE). By using this software, you agree that the authors are not liable for any issues, damages, or claims arising from its use.
+[MIT License](./LICENSE)

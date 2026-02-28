@@ -3,13 +3,13 @@
     "target": "ES2022",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "outDir": "cli/dist",
-    "rootDir": "cli/src",
+    "outDir": "dist",
+    "rootDir": "src",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "declaration": true,
     "resolveJsonModule": true
   },
-  "include": ["cli/src"]
+  "include": ["src"]
 }
